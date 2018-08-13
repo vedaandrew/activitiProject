@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions
+        xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+        xmlns:activiti="http://activiti.org/bpmn"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        targetNamespace="Examples">
+
+    <process id="reviewAlertProcess" name="Display Alert Status">
+        <startEvent id="theStart" />
+        <sequenceFlow id="flow1" sourceRef="theStart" targetRef="updateServiceTask" />
+        <serviceTask id="updateServiceTask" name="Get AlertById and SetInProgress" activiti:expression="${alertStatusService.updateAlertTasks(alertData.id, 'IN_PROGRESS')}"/>
+        <sequenceFlow id="flow2" sourceRef="updateServiceTask" targetRef="handleUserTask" />
+
+        <userTask id="handleUserTask" name="User decision (Approve / Reject)">
+        <documentation>
+            The alert ${alertData.id} is pending for user approval.
+        </documentation>
+        <extensionElements>
+            <activiti:formProperty id="approvalStatus" name="Do you approve this alert request" type="enum" required="true">
+                <activiti:value id="true" name="Approved" />
+                <activiti:value id="false" name="Rejected" />
+            </activiti:formProperty>
+        </extensionElements>
+        </userTask>
+
+        <sequenceFlow id="flow3" sourceRef="handleUserTask" targetRef="approveOrDissaprove" />
+        <serviceTask id='approveOrDissaprove' name='Store decision' activiti:expression="${alertData.setApproved(approvalStatus)}" />
+        <sequenceFlow id="flow4" sourceRef="approveOrDissaprove" targetRef="exclusiveGw" />
+
+        <exclusiveGateway id="exclusiveGw" name="Exclusive Gateway" />
+        <sequenceFlow id="flow5" sourceRef="exclusiveGw" targetRef="acceptServiceTask">
+            <conditionExpression xsi:type="tFormalExpression">${alertData.approved == 'true'}</conditionExpression>
+        </sequenceFlow>
+
+        <sequenceFlow id="flow6" sourceRef="exclusiveGw" targetRef="rejectServiceTask">
+            <conditionExpression xsi:type="tFormalExpression">${alertData.approved == 'false'}</conditionExpression>
+        </sequenceFlow>
+
+        <serviceTask id="acceptServiceTask" name="Accept Task and Update Status" activiti:expression="${alertStatusService.updateAlertTasks(alertData.id, 'ACCEPTED')}"/>
+        <serviceTask id="rejectServiceTask" name="Reject Task and Update Status" activiti:expression="${alertStatusService.updateAlertTasks(alertData.id, 'REJECTED')}"/>
+        <sequenceFlow id="flow7" sourceRef="acceptServiceTask" targetRef="theEnd" />
+        <sequenceFlow id="flow8" sourceRef="rejectServiceTask" targetRef="theEnd" />
+        <endEvent id="theEnd" />
+
+    </process>
+</definitions>
